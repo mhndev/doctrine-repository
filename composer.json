@@ -1,0 +1,16 @@
+{
+    "name": "mhndev/doctrine-repository",
+    "description": "doctrine repository with simple queries inspired by eloquent",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Majid Abdolhosseini",
+            "email": "majid8911303@gmail.com"
+        }
+    ],
+    "require": {
+        "symfony/symfony": "2.8.*",
+        "doctrine/orm": "^2.4.8",
+        "doctrine/doctrine-bundle": "~1.4"
+    }
+}
