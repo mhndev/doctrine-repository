@@ -1,6 +1,7 @@
 {
     "name": "mhndev/doctrine-repository",
     "description": "doctrine repository with simple queries inspired by eloquent",
+    "keywords":["doctrine", "laravel", "symfony", "orm", "Eloquent", "repository"],
     "license": "MIT",
     "authors": [
         {
