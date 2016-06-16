@@ -7,7 +7,11 @@ this package's intention is to help you to enjoy working with models and reposit
 
 ### sample usage :
 
-every repository should extend mhndev\doctrineRepository\AbstractDoctrineRepository instead of doctrine Doctrine\ORM\EntityRepository.
+every repository should extend
+```mhndev\doctrineRepository\AbstractDoctrineRepository
+ ```
+ instead of
+ ```Doctrine\ORM\EntityRepository```
 
 
  so my UserRepository should look like :
