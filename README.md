@@ -16,7 +16,7 @@ every repository should extend mhndev\doctrineRepository\AbstractDoctrineReposit
 
  namespace UserBundle\Repository;
 
- use Abstracts\Repository\AbstractDoctrineRepository;
+ use mhndev\doctrineRepository\AbstractDoctrineRepository;
 
  /**
   * UserRepository
