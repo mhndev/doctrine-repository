@@ -2,7 +2,9 @@
     "name": "mhndev/doctrine-repository",
     "description": "doctrine repository with simple queries inspired by eloquent",
     "keywords":["doctrine", "laravel", "symfony", "orm", "Eloquent", "repository"],
-    "license": "MIT",
+    "type": "library",
+    "homepage": "http://github.com/mhndev/nano-framework-skeleton",
+    "license": "BSD Style",
     "authors": [
         {
             "name": "Majid Abdolhosseini",
@@ -10,6 +12,13 @@
         }
     ],
     "require": {
+        "php": ">=5.4.0",
         "doctrine/orm": "^2.4.8"
-    }
+    },
+    "autoload": {
+      "psr-4": {
+        "mhndev\\doctrineRepository\\": "src/"
+      }
+    },
+    "minimum-stability": "dev"
 }
