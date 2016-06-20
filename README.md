@@ -44,6 +44,7 @@ for example in your action controller you can do the following.
 consider that here I have my UserRepository as an dependency in my UserController.
 
 
+
 ```php
 
       $userArray = $this->repository->findOneById(1, false);
@@ -52,3 +53,5 @@ consider that here I have my UserRepository as an dependency in my UserControlle
       $users = $this->repository->where('name','ab', 'like')->where('enable', 1)->whereIn('status',['public','private'])->all();
 
 ```
+
+
