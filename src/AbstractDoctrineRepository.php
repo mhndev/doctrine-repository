@@ -2,13 +2,15 @@
 
 namespace mhndev\doctrineRepository;
 
+use Abstracts\Repository\Exceptions\InvalidLimitNumber;
+use Abstracts\Repository\Exceptions\InvalidSortTypeException;
+use Abstracts\Repository\Exceptions\RepositoryException;
 use Doctrine\ORM\EntityNotFoundException;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator;
-use mhndev\doctrineRepository\Interfaces\iRepository;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -176,10 +178,9 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
      */
     protected function makeQuery()
     {
-        $result = $this->createQueryBuilder('e')
-            ->select('e');
+        $this->query = $this->query ? $this->query : $this->createQueryBuilder('e')->select('e');
 
-        return $result;
+        return $this->query;
     }
 
     /**
@@ -190,7 +191,18 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         $query = ($this->query) ? $this->query : $this->makeQuery();
 
-        return $returnArray ? $query->getQuery()->getArrayResult() : $query->getQuery()->getResult();
+        return $returnArray ? $this->arrayOfEntitiesToArray($query->getQuery()->getResult()) : $query->getQuery()->getResult();
+    }
+
+
+    protected function arrayOfEntitiesToArray($array)
+    {
+        $result = [];
+        foreach ($array as $entity){
+            $result[] = $entity->with($this->with)->toArray();
+        }
+
+        return $result;
     }
 
     /**
@@ -934,6 +946,7 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function where($key, $value, $operator = '=')
     {
         $query = $this->makeQuery();
+
         $operator = strtoupper($operator);
 
         $relations = $this->getRelations();
@@ -964,24 +977,31 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function whereIn($key, array $values)
     {
         $relations = $this->getRelations();
+        $query = $this->makeQuery();
+
 
         if(in_array($key, $relations)){
-            $this->query = $this->makeQuery()
-                ->innerJoin("e.$key",'uuu')
+            $this->query = $query->innerJoin("e.$key",'uuu')
                 ->where("uuu.id IN(:values)")
                 ->setParameter('values', array_values($values));
         }else{
-            $this->query = $this->makeQuery()
-                ->where("e.$key IN(:values)")
+            $this->query = $query->where("e.$key IN(:values)")
                 ->setParameter('values', array_values($values));
         }
 
         return $this;
-
     }
 
-
-
+//    /**
+//     * @param callable $callable
+//     * @return $this
+//     */
+//    public function whereClosure(Callable $callable)
+//    {
+//        $callable($this->query);
+//
+//        return $this;
+//    }
 
 
     /**
