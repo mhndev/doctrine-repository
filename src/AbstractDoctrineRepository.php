@@ -2,20 +2,18 @@
 
 namespace mhndev\doctrineRepository;
 
-use Abstracts\Repository\Exceptions\InvalidLimitNumber;
-use Abstracts\Repository\Exceptions\InvalidSortTypeException;
-use Abstracts\Repository\Exceptions\RepositoryException;
 use Doctrine\ORM\EntityNotFoundException;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator;
+use mhndev\doctrineRepository\Interfaces\iRepository;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Class AbstractDoctrineRepository
- * @package Abstracts\Repository
+ * @package mhndev\doctrineRepository
  */
 abstract class AbstractDoctrineRepository extends EntityRepository implements iRepository
 {
