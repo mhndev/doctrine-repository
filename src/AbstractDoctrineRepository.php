@@ -108,19 +108,24 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
      * @param integer $page
      * @return integer
      */
-    public function page($page = null)
+     public function page($page = null)
     {
+
+
         if ($page) {
+
             return $this->page = $page;
         }
 
-        if ($this->page) {
-            return $this->page;
-        } elseif (!empty($_GET['page'])) {
+        if (!empty($_GET['page'])) {
             return $this->page = $_GET['page'];
+        } elseif ($this->page) {
+            return $this->page;
         } else {
             return $this->page = 1;
+
         }
+
     }
 
     /**
@@ -129,8 +134,7 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
      */
     public function findOneByIdForValidation($value)
     {
-        dump($value);
-        die();
+ 
 
         return $this->findBy($value);
     }
@@ -211,16 +215,19 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
      * @throws EntityNotFoundException
      * @throws InvalidLimitNumber
      */
-    public function paginate($perPage = null)
+   public function paginate($perPage = null)
     {
         if ($perPage) {
             $this->limit($perPage);
+        } else {
+            if (!empty($_GET['perPage'])) {
+                $this->limit($_GET['perPage']);
+            } else {
+                $this->limit(10);
+            }
         }
-
         $query = $this->query ? $this->query : $this->makeQuery();
-
-        return $this->customPaginate($query);
-    }
+        re
 
     /**
      * @param Query|QueryBuilder $dql
