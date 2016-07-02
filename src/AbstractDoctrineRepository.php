@@ -1084,5 +1084,21 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
             $counter++;
         }
     }
+    
+    
+     /**
+     * @param mixed $id
+     * @param null $lockMode
+     * @param null $lockVersion
+     * @return null|object
+     * @throws EntityNotFoundException
+     */
+    public function find($id, $lockMode = null, $lockVersion = null)
+    {
+        $entity  = parent::find($id, $lockMode, $lockVersion);
+        if (is_null($entity)) throw  new EntityNotFoundException();
+        return $entity;
+
+    }
 
 }
