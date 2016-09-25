@@ -1,70 +1,59 @@
 <?php
-
 namespace mhndev\doctrineRepository;
 
+use Abstracts\Repository\Exceptions\InvalidLimitNumber;
+use Abstracts\Repository\Exceptions\InvalidSortTypeException;
+use Abstracts\Repository\Exceptions\RepositoryException;
 use Doctrine\ORM\EntityNotFoundException;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator;
-use mhndev\doctrineRepository\Interfaces\iRepository;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Class AbstractDoctrineRepository
- * @package mhndev\doctrineRepository
+ * @package Abstracts\Repository
  */
 abstract class AbstractDoctrineRepository extends EntityRepository implements iRepository
 {
-
     /**
      * @var
      */
     protected $data;
-
     /**
      * @var array
      */
     protected $with = [];
-
     /**
      * @var array
      */
     protected $columns = ['*'];
-
     /**
      * @var
      */
-    protected $orderBy;
-
+    protected $orderBy = 'id';
     /**
      * @var string
      */
     protected $sortMethod = 'DESC';
-
     /**
      * @var int
      */
     protected $limit = 10;
-
     /**
      * @var int
      */
     protected $offset = 0;
-
     /**
      * @var int
      */
     protected $page = 1;
-
-
     /**
      * @var string
      */
     protected $entity;
-
-
     /**
      * @var QueryBuilder
      */
@@ -82,7 +71,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
         }
     }
 
-
     /**
      * @return string
      */
@@ -98,7 +86,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function setPage($page)
     {
         $this->page = $page;
-
         return $this;
     }
 
@@ -108,17 +95,22 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
      */
     public function page($page = null)
     {
+
+
         if ($page) {
+
             return $this->page = $page;
         }
 
-        if ($this->page) {
-            return $this->page;
-        } elseif (!empty($_GET['page'])) {
+        if (!empty($_GET['page'])) {
             return $this->page = $_GET['page'];
+        } elseif ($this->page) {
+            return $this->page;
         } else {
             return $this->page = 1;
+
         }
+
     }
 
     /**
@@ -129,7 +121,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         dump($value);
         die();
-
         return $this->findBy($value);
     }
 
@@ -140,11 +131,8 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function findOneByIdUpdate($value)
     {
         die($value);
-
         dump($value);
-
         $result = $this->findOneBy($value);
-
         dump($result);
         die();
     }
@@ -159,17 +147,13 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
      */
     public function findOneBy(array $criteria, array $orderBy = null)
     {
-
         $result = parent::findOneBy($criteria, $orderBy = null);
-
         if ($result == null) {
-
             throw new EntityNotFoundException;
         } else {
             return $result;
         }
     }
-
 
     /**
      * @return QueryBuilder
@@ -177,7 +161,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     protected function makeQuery()
     {
         $this->query = $this->query ? $this->query : $this->createQueryBuilder('e')->select('e');
-
         return $this->query;
     }
 
@@ -188,18 +171,19 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function all($returnArray = true)
     {
         $query = ($this->query) ? $this->query : $this->makeQuery();
-
         return $returnArray ? $this->arrayOfEntitiesToArray($query->getQuery()->getResult()) : $query->getQuery()->getResult();
     }
 
-
+    /**
+     * @param $array
+     * @return array
+     */
     protected function arrayOfEntitiesToArray($array)
     {
         $result = [];
-        foreach ($array as $entity){
+        foreach ($array as $entity) {
             $result[] = $entity->with($this->with)->toArray();
         }
-
         return $result;
     }
 
@@ -213,10 +197,14 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         if ($perPage) {
             $this->limit($perPage);
+        } else {
+            if (!empty($_GET['perPage'])) {
+                $this->limit($_GET['perPage']);
+            } else {
+                $this->limit(10);
+            }
         }
-
         $query = $this->query ? $this->query : $this->makeQuery();
-
         return $this->customPaginate($query);
     }
 
@@ -229,7 +217,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     protected function customPaginate($dql, $returnArray = true)
     {
         $paginator = new Paginator($dql);
-
         $query = $paginator
             ->getQuery()
             ->setFirstResult($this->limit * ($this->page() - 1))
@@ -241,24 +228,24 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
 
         $total = count($paginator);
         $page = $this->page();
-
         $from = (($this->page - 1) * $this->limit) + 1;
         $to = min($total, $from + $this->limit - 1);
         $next = ($total > $to) ? "/?page=" . ($page + 1) : null;
         $prev = ($from > 1) ? "/?page=" . ($page - 1) : null;
-
-
 //        if (empty($paginator->getIterator()->getArrayCopy())) {
 //            throw new EntityNotFoundException;
 //        }
 
         $result = $paginator->getQuery()->getResult();
 
+        if (empty($result)) {
+
+            throw new EntityNotFoundException;
+        }
 
         foreach ($result as $key => $value) {
             if (is_object($value)) {
-
-                $result[$key] = $value->toArray(true);
+                $result[$key] = $value->toArray($this->with);
             }
         }
 
@@ -283,14 +270,11 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     protected function makeSelect($array, $character)
     {
         $result = [];
-
         foreach ($array as $column) {
             $result[] = $character . '.' . $column;
         }
-
         return $result;
     }
-
 
     /**
      * @param $key
@@ -307,19 +291,17 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
 
         if ($returnArray) {
             $query->setHydrationMode(QUERY::HYDRATE_ARRAY);
+        } else {
+            $query->setHydrationMode(QUERY::HYDRATE_OBJECT);
         }
-
         $result = $query->getOneOrNullResult();
-
         if ($result == null && $throwException) {
             throw new EntityNotFoundException;
         } elseif ($result == null) {
             return null;
         }
-
         return $result;
     }
-
 
     /**
      * @param $key
@@ -331,27 +313,19 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     protected function createQueryByCriteria($key, $value = null, $or = false)
     {
         $q = $this->makeQuery();
-
         $chars = ['f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n'];
         $i = 0;
-
         $relations = $this->getRelations();
-
         if (!empty($this->with)) {
             $existingAssociations = $this->_em->getMetadataFactory()->getMetadataFor($this->_entityName)->getAssociationNames();
-
             $associations = array_intersect($this->with, $existingAssociations);
-
             foreach ($associations as $association) {
                 $q = $q->join('e.' . $association, $chars[$i]);
                 $i++;
             }
         }
-
-
         if (is_array($key) || empty($value)) {
             foreach ($key as $field => $value) {
-
                 if (in_array($field, $relations)) {
                     if ($or) {
                         $q->join('e.' . $field, $field)
@@ -369,8 +343,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
                         $q->andWhere(sprintf('e.%s = :%s', $field, $field))->setParameter($field, $value);
                     }
                 }
-
-
             }
         } elseif (!empty($value)) {
             if (in_array($key, $relations)) {
@@ -378,24 +350,19 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
                     ->andWhere('e.' . $key . ' = :value')
                     ->addSelect($key)
                     ->setParameter('value', $value);
-
-
             } else {
                 $q->where(sprintf('e.%s = :%s', $key, $key))
                     ->setParameter($key, $value);
             }
-
         }
 
-        $query = $q->getQuery();
+        $query = $q->orderBy('e.' . $this->orderBy, $this->sortMethod)->getQuery();
 
         foreach ($this->with as $with) {
             $query->setFetchMode($this->_entityName, $with, ClassMetadata::FETCH_EAGER);
         }
-
         return $query;
     }
-
 
     /**
      * @param $key
@@ -408,21 +375,16 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function findManyByCriteria($key, $value = null, $returnArray = true)
     {
         $q = $this->makeQuery();
-
         $chars = ['f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n'];
         $i = 0;
-
         if (!empty($this->with)) {
             $existingAssociations = $this->_em->getMetadataFactory()->getMetadataFor($this->_entityName)->getAssociationNames();
-
             $associations = array_intersect($this->with, $existingAssociations);
-
             foreach ($associations as $association) {
                 $q = $q->join('e.' . $association, $chars[$i]);
                 $i++;
             }
         }
-
         if (is_array($key) || empty($value)) {
             foreach ($key as $field => $value) {
                 $q->andWhere(sprintf('e.%s = :%s', $field, $field))
@@ -432,35 +394,34 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
             $q->andWhere(sprintf('e.%s = :%s', $key, $key))
                 ->setParameter($key, $value);
         }
-
         $query = $q->getQuery();
         foreach ($this->with as $with) {
             $query->setFetchMode($this->_entityName, $with, ClassMetadata::FETCH_EAGER);
         }
-
         $query->setHydrationMode(QUERY::HYDRATE_ARRAY);
+
 
         return $this->customPaginate($query, $returnArray);
     }
 
+    /**
+     * @param $key
+     * @param null $value
+     * @return array
+     */
     public function findManyByCriteriaObjectResult($key, $value = null)
     {
         $q = $this->makeQuery();
-
         $chars = ['f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n'];
         $i = 0;
-
         if (!empty($this->with)) {
             $existingAssociations = $this->_em->getMetadataFactory()->getMetadataFor($this->_entityName)->getAssociationNames();
-
             $associations = array_intersect($this->with, $existingAssociations);
-
             foreach ($associations as $association) {
                 $q = $q->join('e.' . $association, $chars[$i]);
                 $i++;
             }
         }
-
         if (is_array($key) || empty($value)) {
             foreach ($key as $field => $value) {
                 $q->andWhere(sprintf('e.%s = :%s', $field, $field))
@@ -470,15 +431,12 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
             $q->andWhere(sprintf('e.%s = :%s', $key, $key))
                 ->setParameter($key, $value);
         }
-
         $query = $q->getQuery();
         foreach ($this->with as $with) {
             $query->setFetchMode($this->_entityName, $with, ClassMetadata::FETCH_EAGER);
         }
-
         return $query->getResult();
     }
-
 
     /**
      * @param array $data
@@ -486,10 +444,13 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
      */
     public function create(array $data)
     {
+
         $entity = $this->toObject($data);
 
         $this->getEntityManager()->persist($entity);
+
         $this->getEntityManager()->flush();
+
         return $entity;
     }
 
@@ -501,9 +462,7 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         $entityClassName = ucfirst($this->_entityName);
         $entity = new $entityClassName;
-
         $entity = $this->updateEntity($entity, $data);
-
         return $entity;
     }
 
@@ -515,13 +474,10 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function update($id, array $data)
     {
         $entity = $this->findOneById($id, false);
-
         $entity = $this->updateEntity($entity, $data);
-        $this->getEntityManager()->flush();
 
         return $entity;
     }
-
 
     /**
      * @return mixed
@@ -530,36 +486,48 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         $relations = $this->getClassMetadata()->getAssociationMappings();
         $relation_names = array_keys($relations);
-
         return $relation_names;
     }
-
 
     /**
      * @param mixed $entity
      * @param array $data
      * @return mixed
      */
-    protected function updateEntity($entity, array $data)
+    public function updateEntity($entity, array $data)
     {
         $relations = $this->getClassMetadata()->getAssociationMappings();
         $relation_names = array_keys($relations);
 
-
         foreach ($data as $key => $value) {
 
-            if (!empty($relation_names) && (in_array($key, $relation_names) || in_array(lcfirst($this->_snakeToCamel($key)), $relation_names)) ){
+            $setterName = 'set' . ucfirst($this->_snakeToCamel($key));
+            $keyCamelCase = lcfirst($this->_snakeToCamel($key));
 
-                $relatedEntity = $this->getEntityManager()->find($relations[lcfirst($this->_snakeToCamel($key))]['targetEntity'], $value);
-                $entity->{'set' . ucfirst($this->_snakeToCamel($key))}($relatedEntity);
+            if (!empty($relation_names) && (in_array($key, $relation_names) || in_array($keyCamelCase,
+                        $relation_names))
+            ) {
+
+                if (in_array($keyCamelCase, $relation_names)) {
+                    $relatedEntityClass = $relations[$keyCamelCase]['targetEntity'];
+                } else {
+                    $relatedEntityClass = $relations[$key]['targetEntity'];
+                }
+
+                if ($value == null) {
+                    $relatedEntity = null;
+                } else {
+                    $relatedEntity = $this->getEntityManager()->find($relatedEntityClass, $value);
+                }
+                $entity->{$setterName}($relatedEntity);
+
             } else {
-                $entity->{'set' . ucfirst($this->_snakeToCamel($key))}($value);
+                $entity->{$setterName}($value);
             }
         }
-
+        $this->getEntityManager()->flush();
         return $entity;
     }
-
 
     /**
      * @param $val
@@ -573,13 +541,16 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     /**
      * Delete an item by id
      * @param $id
+     * @throws EntityNotFoundException
      */
     public function delete($id)
     {
         $entity = $this->find($id);
+        if (is_null($entity)) {
+            throw  new EntityNotFoundException();
+        }
 
         $this->getEntityManager()->remove($entity);
-
         $this->getEntityManager()->flush();
     }
 
@@ -593,9 +564,7 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
         if (is_array($with) === false) {
             $with = [$with];
         }
-
         $this->with = $with;
-
         return $this;
     }
 
@@ -609,9 +578,7 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
         if (is_array($columns) === false) {
             throw new RepositoryException;
         }
-
         $this->columns = $columns;
-
         return $this;
     }
 
@@ -625,12 +592,9 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
         if (!is_numeric($limit) || $limit < 1) {
             throw new InvalidLimitNumber;
         }
-
         $this->limit = $limit;
-
         return $this;
     }
-
 
     /**
      * @param $orderBy
@@ -643,15 +607,11 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
         if ($orderBy === null) {
             return $this;
         }
-
         $this->orderBy = $orderBy;
-
         if (!in_array(strtoupper($sort), ['DESC', 'ASC'])) {
             throw new InvalidSortTypeException;
         }
-
         $this->sortMethod = $sort;
-
         return $this;
     }
 
@@ -666,7 +626,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
         if (is_null($id)) {
             throw new EntityNotFoundException;
         }
-
         $entity = $this->findOneByCriteria('id', $id, $returnArray);
 
         return $entity;
@@ -680,7 +639,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function findManyBy($key, $value)
     {
         $result = $this->findBy([$key => $value], $this->orderBy, $this->limit, $this->offset);
-
         return $result;
     }
 
@@ -695,17 +653,11 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         $meta = $this->getEntityManager()->getClassMetadata(get_class($this->entity()));
         $identifier = $meta->getSingleIdentifierFieldName();
-
-
         $q = $this->makeQuery();
-
         $q->andWhere('e.' . $identifier . ' IN (:ids)')
             ->setParameter('ids', $ids);
-
         return $this->customPaginate($q, $returnArray);
-
     }
-
 
     /**
      * @param $key
@@ -718,7 +670,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function paginateBy($key, $value, $or = false, $perPage = 10)
     {
         $query = $this->createQueryByCriteria($key, $value, $or);
-
         return $this->customPaginate($query, false);
     }
 
@@ -741,11 +692,9 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function updateOneBy($key, $value, array $data = [])
     {
         $object = $this->findOneByCriteria($key, $value, false);
-
         foreach ($data as $key => $value) {
             $object->{$this->_snakeToCamel('set_' . $key)}($value);
         }
-
         $this->getEntityManager()->flush();
     }
 
@@ -758,13 +707,29 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function updateManyBy($key, $value, array $data = [])
     {
         $result = $this->findManyByCriteria($key, $value, false);
-
         foreach ($result as $object) {
             foreach ($data as $key => $value) {
                 $object->{$this->_snakeToCamel('set_' . $key)}($value);
             }
         }
+        $this->getEntityManager()->flush();
+    }
 
+    public function updateManyWithConsiderLastValue($key, $value, array  $data = [], $operator = null)
+    {
+
+
+        // todo should user operator to operate dynamic
+        $result = $this->findManyByCriteria($key, $value, false);
+        foreach ($result as $object) {
+            foreach ($data as $key => $value) {
+                $lastValue = $object->{$this->_snakeToCamel('get_' . $key)}($value);
+
+                $newValue = $lastValue + $value;
+
+                $object->{$this->_snakeToCamel('set_' . $key)}($newValue);
+            }
+        }
         $this->getEntityManager()->flush();
     }
 
@@ -778,7 +743,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         foreach ($ids as $id) {
             $entity = $this->find($id);
-
             if ($entity) {
                 foreach ($data as $key => $value) {
                     $entity->{'set' . ucfirst($key)}($value);
@@ -786,9 +750,7 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
             } else {
                 throw new EntityNotFoundException;
             }
-
         }
-
         $this->getEntityManager()->flush();
     }
 
@@ -817,13 +779,13 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
      */
     public function deleteOneBy($key, $value = null)
     {
+
         $item = $this->findOneByCriteria($key, $value, false);
 
         $this->getEntityManager()->remove($item);
 
         $this->getEntityManager()->flush();
     }
-
 
     /**
      * @param $key
@@ -833,12 +795,9 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function deleteManyBy($key, $value = null)
     {
         $result = $this->findManyByCriteriaObjectResult($key, $value);
-
-
         foreach ($result as $object) {
             $this->getEntityManager()->remove($object);
         }
-
         $this->getEntityManager()->flush();
     }
 
@@ -852,7 +811,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
             $entity = $this->find($id);
             $this->getEntityManager()->remove($entity);
         }
-
         $this->getEntityManager()->flush();
     }
 
@@ -864,9 +822,7 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function inc($id, $field)
     {
         $entity = $this->findOneById($id, false);
-
         $newFieldValue = $entity->{lcfirst($this->_snakeToCamel('get_' . $field))}() + 1;
-
         return $this->updateOneById($id, [$field => $newFieldValue]);
     }
 
@@ -879,7 +835,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         $entity = $this->findOneById($id, false);
         $newFieldValue = $entity->{$this->_snakeToCamel('get' . $field)} - 1;
-
         return $this->updateOneById($id, [$field => $newFieldValue]);
     }
 
@@ -933,7 +888,6 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
         // TODO: Implement searchByCriteria() method.
     }
 
-
     /**
      * @param string $key
      * @param string $value
@@ -944,20 +898,16 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     public function where($key, $value, $operator = '=')
     {
         $query = $this->makeQuery();
-
         $operator = strtoupper($operator);
 
         $relations = $this->getRelations();
-
-        if(in_array($key, $relations)){
+        if (in_array($key, $relations)) {
             $this->query = $query->join('e.' . $key, $key)
                 ->addSelect($key)
-                ->andWhere(sprintf('e.%s = :%s', $key, $key))
+                ->andWhere(sprintf('e.%s %s :%s', $key, $operator, $key))
                 ->setParameter($key, $value);
-
-        }else{
-            $value = ($operator == 'LIKE') ? '%'.$value.'%' : $value;
-
+        } else {
+            $value = ($operator == 'LIKE') ? '%' . $value . '%' : $value;
             $this->query = $query->andWhere("e.$key $operator :value")
                 ->setParameter('value', $value);
         }
@@ -965,6 +915,56 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
         return $this;
     }
 
+
+    /**
+     * @param $key
+     * @return $this
+     */
+    public function whereNull($key)
+    {
+        $query = $this->makeQuery();
+        $this->query = $query->andWhere("e.$key is NULL");
+
+        return $this;
+    }
+
+
+    /**
+     * @param array $condition1
+     * @param array $condition2
+     * @return $this
+     */
+    public function whereWithOr(array $condition1, array $condition2)
+    {
+        $query = $this->makeQuery();
+
+        $operator1 = !empty($condition1[2]) ? strtoupper($condition1[2]) : '=';
+
+        $operator2 = !empty($condition2[2]) ? strtoupper($condition2[2]) : '=';
+
+        $relations = $this->getRelations();
+
+        if (in_array($condition1[0], $relations)) {
+            $this->query = $query->join('e.' . $condition1[0], $condition1[0])
+                ->addSelect($condition1[0])
+                ->addSelect($condition2[0])
+                ->andWhere(sprintf('e.%s %s :%s OR e.%s %s :%s',
+                    $condition1[0], $operator1, $condition1[1], $condition2[0], $operator2, $condition2[1]
+                ))
+                ->setParameter($condition1[0], $condition1[1])
+                ->setParameter($condition2[0], $condition2[1]);
+
+        } else {
+            $value1 = ($condition1[2] == 'LIKE') ? '%' . $condition1[1] . '%' : $condition1[1];
+            $value2 = ($condition2[2] == 'LIKE') ? '%' . $condition2[1] . '%' : $condition2[1];
+
+            $this->query = $query->andWhere("e.$condition1[0] $operator1 :value1 OR e.$condition2[0] $operator2 :value2")
+                ->setParameter('value1', $value1)->setParameter('value2', $value2);
+        }
+
+        return $this;
+
+    }
 
     /**
      * @param string $key
@@ -976,20 +976,16 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         $relations = $this->getRelations();
         $query = $this->makeQuery();
-
-
-        if(in_array($key, $relations)){
-            $this->query = $query->innerJoin("e.$key",'uuu')
+        if (in_array($key, $relations)) {
+            $this->query = $query->innerJoin("e.$key", 'uuu')
                 ->where("uuu.id IN(:values)")
                 ->setParameter('values', array_values($values));
-        }else{
+        } else {
             $this->query = $query->where("e.$key IN(:values)")
                 ->setParameter('values', array_values($values));
         }
-
         return $this;
     }
-
 //    /**
 //     * @param callable $callable
 //     * @return $this
@@ -1001,64 +997,63 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
 //        return $this;
 //    }
 
-
     /**
      * @param Request $request
+     * @param bool $or
      * @return Paginator
      */
-    public function search(Request $request)
+    public function search(Request $request, $or = false)
     {
         $searchQuery = $this->createQueryBuilder('R');
-
-        $this->prepareParams($searchQuery, $request);
+        $this->prepareParams($searchQuery, $request, $or);
         if (!is_null($request->query->get('with'))) {
             $this->prepareJoins($searchQuery, $request);
         }
 
 //        dump($searchQuery->getQuery()->getResult());
 //        die();
-
         return $this->customPaginate($searchQuery->getQuery(), false);
-
-
         //$result = $this->getEntityManager()->getE
-
     }
+
 
     /**
      * @param QueryBuilder $queryBuilder
      * @param Request $request
+     * @param bool $or
      */
-    private function prepareParams(QueryBuilder $queryBuilder, Request $request)
+    private function prepareParams(QueryBuilder $queryBuilder, Request $request, $or)
     {
         $firstQuery = true;
-
         if (!empty($request->query->get('search'))) {
             $searchItems = explode(',', $request->query->get('search'));
-
             foreach ($searchItems as $item) {
-
                 $query = (explode(':', $item));
                 if ($firstQuery) {
                     $queryBuilder->where('R.' . $query[0] . " " . $query[1] . ' :' . $query[0]);
+
                     $firstQuery = false;
                 } else {
-                    $queryBuilder->andWhere('R.' . $query[0] . " " . $query[1] . ' :' . $query[0]);
+                    if ($or) {
+                        $queryBuilder->orWhere('R.' . $query[0] . " " . $query[1] . ' :' . $query[0]);
 
+                    } else {
+                        $queryBuilder->andWhere('R.' . $query[0] . " " . $query[1] . ' :' . $query[0]);
+
+                    }
                 }
-
             }
-
             $searchItems = explode(',', $request->query->get('search'));
             foreach ($searchItems as $item) {
                 $parameter = explode(':', $item);
-
                 $queryBuilder->setParameter($parameter[0], $parameter[2]);
             }
+            if (!empty($request->query->get('orderBy'))) {
+                $order = explode(',', $request->query->get('orderBy'));
 
+                $queryBuilder->orderBy('R.' . $order[0], $order[1]);
+            }
         }
-
-
     }
 
     /**
@@ -1069,11 +1064,26 @@ abstract class AbstractDoctrineRepository extends EntityRepository implements iR
     {
         $chars = ['q', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
         $counter = 0;
-
         foreach (explode(',', $request->query->get('with')) as $with) {
             $queryBuilder->join('R.' . $with, $chars[$counter]);
             $counter++;
         }
     }
 
+    /**
+     * @param mixed $id
+     * @param null $lockMode
+     * @param null $lockVersion
+     * @return null|object
+     * @throws EntityNotFoundException
+     */
+    public function find($id, $lockMode = null, $lockVersion = null)
+    {
+        $entity = parent::find($id, $lockMode, $lockVersion);
+        if (is_null($entity)) {
+            throw  new EntityNotFoundException();
+        }
+        return $entity;
+
+    }
 }
